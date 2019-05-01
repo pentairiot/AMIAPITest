@@ -1,0 +1,90 @@
+service: APITest
+
+provider:
+  name: aws
+  stage: prod
+  runtime: python3.6
+  region: us-east-1
+
+resources:
+  Resources:
+    APITestRole:
+      Type: AWS::IAM::Role
+      Properties:
+        Path: /ami/
+        RoleName: APITest
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: APITestPolicy
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - lambda:InvokeFunction
+                  Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:APITest"
+          - PolicyName: APITestLoggingPolicy
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    Fn::GetAtt:
+                      - APITestLogGroup
+                      - Arn
+        ManagedPolicyArns:
+          - Fn::ImportValue: MobiusTableReadPolicy
+          - Fn::ImportValue: MobiusTableWritePolicy
+          - Fn::ImportValue: MobiusQueueReadPolicy
+          - Fn::ImportValue: MobiusQueueWritePolicy
+
+    APITestLogGroup:
+        Type: AWS::Logs::LogGroup
+        Properties:
+          LogGroupName: /aws/lambda/APITest
+          RetentionInDays: 1
+
+package:
+  individually: true
+
+functions:
+  APITest:
+    handler: APITest.lambda_handler
+    module: .
+    name: APITest
+    description: Periodically poll the AMI API endpoint and get new data
+    memorySize: 128
+    timeout: 300
+    role:
+      Fn::GetAtt:
+        - APITestRole
+        - Arn
+    package:
+      exclude:
+        - "**"
+        - "!*.py"
+        - "!*.json"
+    events:
+      - schedule:
+          rate: rate(30 minutes)
+          input: "{}"
+          name: APITest
+    environment:
+      VAULT_TOKEN: 01ab16fd-b2cd-c0f0-9569-2a9aee9f4722
+
+plugins:
+  - serverless-pseudo-parameters
+  - serverless-python-requirements
+custom:
+  pythonRequirements:
+    dockerizePip: non-linux
