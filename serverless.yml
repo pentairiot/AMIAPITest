@@ -42,11 +42,6 @@ resources:
                     Fn::GetAtt:
                       - APITestLogGroup
                       - Arn
-        ManagedPolicyArns:
-          - Fn::ImportValue: MobiusTableReadPolicy
-          - Fn::ImportValue: MobiusTableWritePolicy
-          - Fn::ImportValue: MobiusQueueReadPolicy
-          - Fn::ImportValue: MobiusQueueWritePolicy
 
     APITestLogGroup:
         Type: AWS::Logs::LogGroup
@@ -74,11 +69,6 @@ functions:
         - "**"
         - "!*.py"
         - "!*.json"
-    events:
-      - schedule:
-          rate: rate(30 minutes)
-          input: "{}"
-          name: APITest
     environment:
       VAULT_TOKEN: 01ab16fd-b2cd-c0f0-9569-2a9aee9f4722
 
