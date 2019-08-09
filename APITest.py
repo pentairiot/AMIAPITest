@@ -4,6 +4,7 @@ import logging
 import json
 from hvac import Client as VaultClient
 import http.client as http_client
+from datetime import datetime, timedelta
 
 AMI_URL = 'https://www.ami-central.com:1985/MBService'
 TIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
@@ -55,18 +56,10 @@ def get_register_values(device, token):
     try:
         registers = json.loads(device['SENSOR_REGISTERS'])
         for group in chunk_list(registers, 40):
-            body = {'DeviceID': device['SID'],
-                    'Registers': [
-                        {
-                            "RegisterAddress": int(sid.split('-')[1]),
-                            "SlaveID": int(sid.split('-')[2]),
-                            "BusIndex": int(sid.split('-')[3])
-                        } for sid in group
-                    ]}
-            resp = requests.post(AMI_URL + '/GetRegistersValues', headers={
-                'Authorization': 'token:' + token,
-                'Content-Type': 'application/json; charset=utf-8'
-            }, json=body)
+            body = {'DeviceID': device_id,
+                'FromDate': (datetime.utcnow() - timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S'),
+                'ToDate': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}
+            resp = requests.post(AMI_URL + '/GetAllLoggedRegistersData', headers={'Authorization': 'token:' + token, 'Content-Type': 'application/json; charset=utf-8'}, json=body)
             #values.extend(resp.json()['RegisterValues'])
             #print(resp.json())
         print('%s Success!' % device_id)
